@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "../IERC20ChildToken.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ethSideBridge is Ownable {
+contract polySideBridge is Ownable {
     bool bridgeState;
     IERC20ChildToken private polySideToken;
     address public gatewayAddress;

@@ -1,8 +1,11 @@
-require("@nomiclabs/hardhat-ethers");
-require("@nomiclabs/hardhat-truffle5");
-require("@nomiclabs/hardhat-etherscan");
-require("hardhat-deploy");
-require('@nomiclabs/hardhat-waffle')
+import { HardhatUserConfig, task } from "hardhat/config";
+
+import "@nomiclabs/hardhat-ethers";
+import "@nomiclabs/hardhat-truffle5";
+import "@nomiclabs/hardhat-etherscan";
+import "hardhat-deploy";
+import "@typechain/hardhat";
+import '@nomiclabs/hardhat-waffle'
 
 require('dotenv').config()
 
@@ -15,8 +18,16 @@ const DEPLOY_ENDPOINT_ORIGIN = process.env.DEPLOY_ENDPOINT_ORIGIN;
 const DEPLOY_ENDPOINT_DESTINATION = process.env.DEPLOY_ENDPOINT_DESTINATION;
 const DEPLOY_ACC_KEY = process.env.DEPLOY_ACC_KEY;
 
+task("accounts", "Prints the list of accounts", async (_, hre) => {
+  const accounts = await hre.ethers.getSigners();
+
+  for (const account of accounts) {
+    console.log(account.address);
+  }
+});
+
 //....
-module.exports = {
+const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.7",
     settings: {
@@ -28,7 +39,6 @@ module.exports = {
   },
   paths: {
     sources: './contracts',
-    scripts: './scripts',
     artifacts: '../web/src/artifacts',
     tests: './test',
   },
@@ -42,13 +52,15 @@ module.exports = {
     },
     // Eth side of the bridge - supported on Ropsten 
     origin: {
-      url: DEPLOY_ENDPOINT_ORIGIN,
-      accounts: [DEPLOY_ACC_KEY],
+      url: process.env.DEPLOY_ENDPOINT_ORIGIN || "",
+      accounts:
+      DEPLOY_ACC_KEY !== undefined ? [DEPLOY_ACC_KEY] : [],
     },
     // Polygon side of the bridge - supported on Mumbai 
     destination: {
-      url:DEPLOY_ENDPOINT_DESTINATION,
-      accounts: [DEPLOY_ACC_KEY],
+      url: process.env.DEPLOY_ENDPOINT_DESTINATION || "",
+      accounts:
+      DEPLOY_ACC_KEY !== undefined ? [DEPLOY_ACC_KEY] : [],
     },
   },
   etherscan: {
@@ -69,3 +81,5 @@ module.exports = {
     timeout: 20000,
   },
 };
+
+export default config;
