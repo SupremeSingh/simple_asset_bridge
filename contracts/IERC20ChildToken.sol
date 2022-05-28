@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/Interfaces/IERC20.sol";
+import "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 /// @dev Interface of the child ERC20 token, for use on sidechains and L2 networks.
 interface IERC20ChildToken is IERC20 {

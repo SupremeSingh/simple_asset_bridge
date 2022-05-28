@@ -1,37 +1,90 @@
-let { networkConfig } = require('../hardhat-helper-config')
-const fs = require('fs')
+import { ethers } from "hardhat";
+require('dotenv').config()
+
+const { expect } = require('chai');
+const hre = require("hardhat");
+const { BigNumber } = require('ethers');
 
 module.exports = async ({
-    getNamedAccounts,
-    deployments,
-    getChainId
+  getNamedAccounts,
+  deployments,
+  getChainId
 }) => {
 
-    const { deploy, log } = deployments
-    const { deployer } = await getNamedAccounts()
-    const chainId = await getChainId()
+  const { deploy, log } = deployments
+  const { deployer } = await ethers.getSigners()
+  const chainId = await getChainId()
+  // If we are on Rinkeby, we proceed with deployement!
+  if (chainId == 4) {
 
-    log("----------------------------------------------------")
+    log("Rinkeby detected! Deploying contracts...")
 
-    const ManualNFTContract = await ethers.getContractFactory("manualNFT")
-    const manualNFTContract = await ManualNFTContract.deploy({
-        gasLimit: 250000
-    })
-    await manualNFTContract.deployed()
+    let SMALL_BALANCE = ethers.utils.parseUnits("1", 10);
+    let MEDIUM_BALANCE = ethers.utils.parseUnits("5", 18);
+    let GIANT_BALANCE = ethers.utils.parseUnits("10", 18);
 
-    log(`You have deployed an NFT contract to ${manualNFTContract.address}`)
 
-    log(`Verify with:\n npx hardhat verify --network ropsten ${manualNFTContract.address}`)
-    log("Let's create an NFT now!")
+    log("--------------------- Deploying My Token Contract ----------------------")
 
-    // let filepath = "./media/small.svg"
-    // let svg = fs.readFileSync(filepath, { encoding: "utf8" })
-    // log(`We will use ${filepath} as our SVG, and this will turn into a tokenURI. `)
+    const MyToken = await ethers.getContractFactory("myToken");
+    const myToken = await MyToken.deploy();
+    await myToken.deployed();
+    
+    log("--------------------- Deploying Mock WETH Contract ----------------------")
 
-    // tx = await manualNFTContract.create(svg)
+    const myWETH = await ethers.getContractAt("contracts/IERC20.sol:IERC20", networkConfig[chainId]["weth"]);;
+    await myWETH.deployed();
+    
+    log("--------------------- Deploying Single Path Swapper ----------------------")
 
-    // log(`You've made your first NFT!`)
-    // log(`You can view the tokenURI here ${await manualNFTContract.tokenURI(0)}`)
+    const MockSwapper = await ethers.getContractFactory("singlePathSwapper");
+    const mockSwapper = await MockSwapper.deploy(networkConfig[chainId]["swapRouter"], myToken.address);
+    await mockSwapper.deployed();
+
+    await myToken.approve(mockSwapper.address, GIANT_BALANCE);
+    await myWETH.approve(mockSwapper.address, GIANT_BALANCE);
+
+    log("--------------------- Deploying Token Vendor ----------------------")
+
+    const MockVendor = await ethers.getContractFactory("Vendor");
+    const mockVendor = await MockVendor.deploy(myToken.address, mockSwapper.address);
+    await mockVendor.deployed();
+
+    await myToken.approve(mockVendor.address, GIANT_BALANCE);
+    await myWETH.approve(mockVendor.address, GIANT_BALANCE);
+
+    await mockVendor.addTokensToWhitelist(myWETH.address);
+    await mockVendor.loadContractWithEth(SMALL_BALANCE, {value: SMALL_BALANCE});
+
+    log("--------------------- Deploying The Lottery Contract ----------------------")
+
+    const MockLottery = await ethers.getContractFactory("simpleLottery");
+    const mockLottery = await MockLottery.deploy(myToken.address, networkConfig[chainId]["vrfCoordinator"], networkConfig[chainId]["linkToken"], networkConfig[chainId]["fee"], networkConfig[chainId]["keyHash"]);
+    await mockLottery.deployed();
+
+    await myToken.approve(mockLottery.address, GIANT_BALANCE);
+
+    log("--------------------- Setting up the lottery ----------------------")
+
+    await mockLottery.startLottery(SMALL_BALANCE, {value: SMALL_BALANCE}); 
+
+    log("--------------------- Just Checking Up To Here ----------------------")
+        
+    log("Approval Balance Now:\t" + GIANT_BALANCE);
+    log("My Token Address:\t" + myToken.address);
+    log("WETH deployed at:\t" + myWETH.address);
+
+    log("Mock Swapper deployed at:\t" + mockSwapper.address);
+    log("Token Vendor deployed at:\t" + mockVendor.address);
+    log("Lottery Contract deployed at:\t" + mockLottery.address);
+
+    log("Lottery is in a state of:\t" + await mockLottery.lottery_state());
+    log("Total prize of:\t" + await mockLottery.awardAmount());
+    log("Submit:\t" + await mockLottery.awardAmount() + "\t MTN Tokens to Play");
+  
+    log("Verify above addresses with: npx hardhat verify --network <network> DEPLOYED_CONTRACT_ADDRESS <'Constructor argument 1'>")
+
+    log("--------------------- Yowza - everything is now set up ----------------------")
+
+  }
 }
-
-module.exports.tags = ['all', 'svg']

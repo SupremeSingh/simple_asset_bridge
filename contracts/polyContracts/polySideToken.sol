@@ -27,7 +27,7 @@ contract polySideToken is ERC20, ERC20Burnable{
         super.burn(_amount);
     }
 
-    function burnFrom(address account, uint256 amount) public override virtual {
+    function burnFrom(address account, uint256 amount) public override virtual onlyEthPolyBridge() {
         _spendAllowance(account, _msgSender(), amount);
         _burn(account, amount);
     }
